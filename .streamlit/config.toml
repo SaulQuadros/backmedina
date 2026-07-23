@@ -1,0 +1,15 @@
+[server]
+headless = true
+# Porta padrão; em caso de conflito, rodar com: streamlit run app/streamlit_app.py --server.port 8502
+port = 8501
+
+[theme]
+primaryColor = "#37474F"
+base = "light"
+
+[browser]
+gatherUsageStats = false
+
+[client]
+# Navegação automática desativada — usamos a aba "Deflectometria" do sidebar.
+showSidebarNavigation = false

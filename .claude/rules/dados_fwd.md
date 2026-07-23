@@ -1,0 +1,49 @@
+# Regras — Domínio de dados FWD (contratos de schema)
+
+Aplica-se a `src/backmedina/**`. Estes contratos garantem compatibilidade com o
+MeDiNa/BackMeDiNa e **não** mudam sem autorização explícita.
+
+## Unidades (fixas)
+- Deflexões nos **cálculos** (Rc, PBD, segmentação, deflexão característica):
+  **0,01 mm** (`x10⁻² mm`). A constante `6250` do Rc embute esta unidade — não
+  alimente as fórmulas com µm.
+- Deflexões na **saída BackMeDiNa (CSV)**: **µm**. `1 (0,01 mm) = 10 µm` →
+  `valor_µm = valor_0,01mm × 10`. **Único ponto de conversão:** `convert/backmedina_csv.py`.
+- **Fonte por leitor:** SOLOCAP (xlsx/PDF) = 0,01 mm; CSV de bacias (formato do
+  BackMeDiNa) = µm. A unidade é detectada em `model/units.detectar_unidade` e
+  guardada em `DadosFWD.unidade_deflexao`; `analytics`/`segmentation` normalizam
+  para 0,01 mm internamente via o parâmetro `unidade`.
+- Carga: `kN` e `kgf`; no CSV BackMeDiNa a carga vai em **kgf** (não converter).
+- Distâncias radiais dos sensores: **cm**. Estaca/posição: **m**.
+- Planilha padronizada "Tabela" (.xlsx): permanece em **0,01 mm** (fiel ao SOLOCAP).
+
+## Mapa de sensores (autoritativo — Rocha/BackMeDiNa)
+```
+D1→d0(0)   D2→d20(20)  D3→d30(30)  D4→d45(45)  D5→d60(60)
+D6→d90(90) D7→d120(120) D8→d150(150) D9→d180(180)   D10→(~210, DESCARTADO)
+```
+Placa FWD: **raio = 15 cm**. Fonte única: `model/schema.py` (`D_TO_SENSOR`,
+`SENSOR_OFFSETS_CM`, `RAIO_PLACA_CM`). Não duplicar estas constantes.
+
+## Números em formato BR
+Todo texto numérico (`4.059`, `-21,77314`, `2.080,00`) passa por
+`io/br_numbers.parse_br_number/parse_br_series`. Ponto = milhar, vírgula = decimal.
+
+## Layouts de I/O (não alterar sem autorização)
+- **SOLOCAP .xlsx** (aba "Tabela"): metadados linhas 1-10, cabeçalho linha 13,
+  dados linha 14+; colunas `COLUNAS_TABELA`.
+- **CSV bacias**: `;`-sep, CP1252, 1ª linha em branco, header com `d0..d180`.
+- **CSV BackMeDiNa** (saída): cabeçalho de 3 linhas
+  `BACKMEDINA` / `SEÇÃO: <nome>` / `RAIO (cm): 15`, depois `BACKMEDINA_HEADER`.
+
+## Fórmulas (referência Rocha 2020 / AASHTO 1993 / Machado 2019)
+- `D25 = (D20+D30)/2`; `Rc = 6250 / [2·(D0−D25)]` (m).
+- `AREA = 15·[1 + 2·(D30/D0) + 2·(D60/D0) + (D90/D0)]` (cm).
+- `SCI=D0−D30`, `BDI=D30−D60`, `BCI=D60−D90`, `CF=D0−D20`.
+- `S(%) = (D0+D30+D60+D90+D120)/(5·D0)·100`.
+- Segmentação: diferenças acumuladas `Zᵢ = ΣAᵢ − (A_c/L_c)·ΣΔlᵢ` sobre D0.
+- Deflexão característica do trecho: `D_c = média(D0) + σ` (σ amostral, ddof=1).
+
+## Verificação
+Qualquer mudança em parsing/contrato/fórmula deve ser coberta por `pytest` com
+fixtures do arquivo real `z_docs/lwd/2-UFJF-VIA_LOCAL_FX1-FWD.xlsx`.

@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# SO / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Saídas temporárias
+*.log
+/tmp_out/
+
+# Dados reais + PDFs de terceiros + binário .exe (fora do repo público).
+# Continuam no disco local (fixtures de teste com skipif); apenas não versionados.
+z_docs/
+
+# Artefatos do WSL (marca de origem do Windows)
+*:Zone.Identifier
+
+# Materiais de apresentação binários (.pptx/.pdf) — fora do repo de código.
+# Continuam no disco local; publicar à parte, se desejado.
+docs/notebooklm/

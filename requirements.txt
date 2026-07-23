@@ -1,0 +1,11 @@
+streamlit>=1.49
+pandas>=2.0
+numpy>=1.24
+matplotlib>=3.7
+plotly>=5.20
+openpyxl>=3.1
+python-docx>=1.1
+# Extração de PDF FWD usa `pdftotext` (poppler-utils, dependência de SISTEMA —
+# ver packages.txt / Dockerfile), não um pacote pip.
+# Desenvolvimento/testes:
+pytest>=7.0

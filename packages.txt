@@ -1,0 +1,7 @@
+# Dependências de sistema para o Streamlit Community Cloud (apt).
+# Só poppler-utils: leve e necessário para o `pdftotext` (import de PDF FWD).
+# O relatório em PDF (LuaLaTeX + TeX Gyre) NÃO é instalado aqui — o TeXLive
+# completo estoura os limites de build do Community Cloud. Na nuvem o app oferece
+# o relatório em .docx; para o PDF, use execução local ou o Dockerfile (que mantém
+# o TeX completo).
+poppler-utils
