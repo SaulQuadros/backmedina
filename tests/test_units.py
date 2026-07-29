@@ -38,7 +38,7 @@ def _dados(unidade):
 def test_csv_converte_0p01mm_para_micrometro():
     csv = exportar_csv_backmedina(_dados(UnidadeDeflexao.DMM_001))
     col = {n: i for i, n in enumerate(BACKMEDINA_HEADER)}
-    linha = csv.splitlines()[4].split(",")
+    linha = csv.splitlines()[4].split(";")
     assert linha[col["d0"]] == "440"   # 44 * 10
     assert linha[col["d180"]] == "30"  # 3 * 10
 
@@ -46,7 +46,7 @@ def test_csv_converte_0p01mm_para_micrometro():
 def test_csv_nao_converte_quando_ja_micrometro():
     csv = exportar_csv_backmedina(_dados(UnidadeDeflexao.MICROMETRO))
     col = {n: i for i, n in enumerate(BACKMEDINA_HEADER)}
-    linha = csv.splitlines()[4].split(",")
+    linha = csv.splitlines()[4].split(";")
     assert linha[col["d0"]] == "44"  # sem conversão
     assert linha[col["d180"]] == "3"
 
@@ -89,10 +89,10 @@ def test_csvs_por_segmento_zip():
 
     # Cada CSV: cabeçalho correto, SEÇÃO seg_NN, deflexões em µm (D1*10).
     csv1 = arquivos["seg_01.csv"].splitlines()
-    assert csv1[0] == "BACKMEDINA"
-    assert csv1[1] == "SEÇÃO: seg_01"
-    assert csv1[2] == "RAIO (cm): 15"
-    d0_primeira = int(csv1[4].split(",")[8])   # coluna d0
+    assert csv1[0].split(";")[0] == "BACKMEDINA"
+    assert csv1[1].split(";")[:2] == ["SEÇÃO:", "seg_01"]
+    assert csv1[2].split(";")[:2] == ["RAIO (cm):", "15"]
+    d0_primeira = int(csv1[4].split(";")[8])   # coluna d0
     d0_bruto = int(dados.tabela["D1"].iloc[0])
     assert d0_primeira == d0_bruto * 10
 

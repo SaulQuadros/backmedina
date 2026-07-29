@@ -67,7 +67,9 @@ sobrescrita ou mudança estrutural.
   de conversão em `convert/backmedina_csv.py`); carga em kgf. Unidade da fonte
   detectada em `model/units.py` e guardada em `DadosFWD.unidade_deflexao`.
 - **Contratos:** manter exatamente `BACKMEDINA_HEADER`, o cabeçalho de 3 linhas do
-  CSV (`BACKMEDINA` / `SEÇÃO:` / `RAIO (cm): 15`) e o layout da aba "Tabela".
+  CSV (`BACKMEDINA` / `SEÇÃO:;<nome>` / `RAIO (cm):;15`, rótulo e valor em células
+  separadas) e o layout da aba "Tabela". O CSV BackMeDiNa é `;`-sep, **CP1252** e
+  **CRLF** — o importador é rígido nesses três pontos.
 - **Documentos/PDF:** seguir a skill `gerar-documentos` — PDF só via LuaLaTeX +
   `fontspec` + TeX Gyre Pagella (proibido Type 1); validar com `pdffonts`.
 

@@ -33,8 +33,19 @@ Todo texto numérico (`4.059`, `-21,77314`, `2.080,00`) passa por
 - **SOLOCAP .xlsx** (aba "Tabela"): metadados linhas 1-10, cabeçalho linha 13,
   dados linha 14+; colunas `COLUNAS_TABELA`.
 - **CSV bacias**: `;`-sep, CP1252, 1ª linha em branco, header com `d0..d180`.
-- **CSV BackMeDiNa** (saída): cabeçalho de 3 linhas
-  `BACKMEDINA` / `SEÇÃO: <nome>` / `RAIO (cm): 15`, depois `BACKMEDINA_HEADER`.
+- **CSV BackMeDiNa** (saída): `;`-sep, **CP1252**, **CRLF**. Cabeçalho de 3 linhas
+  com rótulo e valor em **células separadas** — `BACKMEDINA` / `SEÇÃO:;<nome>` /
+  `RAIO (cm):;15` — depois `BACKMEDINA_HEADER`. **Todas** as linhas (inclusive as
+  3 de cabeçalho) preenchidas com `;` até o nº total de colunas.
+  Colunas de deflexão: `d0..d180` (de D1..D9) **mais `d210`** (de D10), 18 no
+  total. `d210` existe só no CSV — não entra em nenhum cálculo.
+  Grafia da 6ª coluna: `Estaca – Descolamento` (com "c", como no template).
+  `Estaca – Faixa`/`Estaca – Trilha`: valor **único** para o levantamento, vindo
+  da UI (página 3, `st.session_state["estaca_faixa"]`/`["estaca_trilha"]`) — o
+  SOLOCAP não traz essas colunas; o CSV de bacias traz e serve de valor inicial.
+  Não confundir com `n_faixas` da sidebar (nº de faixas da via, só no relatório).
+  Desvios nesses pontos fazem o importador falhar com "ERRO 1 — Problemas ao
+  abrir o arquivo" (ver `z_docs/error/csv-backmedina/`).
 
 ## Fórmulas (referência Rocha 2020 / AASHTO 1993 / Machado 2019)
 - `D25 = (D20+D30)/2`; `Rc = 6250 / [2·(D0−D25)]` (m).

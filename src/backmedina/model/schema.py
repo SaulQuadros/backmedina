@@ -94,18 +94,36 @@ CSV_BACIAS_HEADER: tuple[str, ...] = (
 )
 
 # --- Layout do CSV BackMeDiNa (saída principal) -----------------------------
+#
+# Formato fiel ao arquivo aceito pelo BackMeDiNa (referência: Segmento_1.csv
+# gerado pelo ConversorDadosFWD original). O importador é rígido: separador ';',
+# encoding CP1252, fim de linha CRLF, rótulo e valor de `SEÇÃO:`/`RAIO (cm):`
+# em CÉLULAS SEPARADAS e todas as linhas preenchidas até o nº total de colunas.
 
 BACKMEDINA_MARCADOR: str = "BACKMEDINA"
+BACKMEDINA_SEP: str = ";"
+BACKMEDINA_ENCODING: str = "cp1252"
+BACKMEDINA_EOL: str = "\r\n"
+
+# O CSV do BackMeDiNa traz um 10º geofone (~210 cm) que NÃO entra nos cálculos
+# (SENSOR_LABELS continua com os 9 sensores de Rocha). Vem de D10 do SOLOCAP.
+SENSOR_LABEL_EXTRA: str = "d210"
+BACKMEDINA_SENSOR_LABELS: tuple[str, ...] = (*SENSOR_LABELS, SENSOR_LABEL_EXTRA)
+
+# Grafia real do template do BackMeDiNa: "Descolamento" (com "c") — igual a
+# CSV_BACIAS_HEADER, o que permite reler a própria saída.
+BACKMEDINA_COL_CHAINAGE: str = "Estaca – Descolamento"
+
 BACKMEDINA_HEADER: tuple[str, ...] = (
     "Data de Execução",
     "Temp. Do Ar",
     "Temp. Do Pavimento",
     "Carga",
     "Estaca – Número",
-    "Estaca – Deslocamento",
+    BACKMEDINA_COL_CHAINAGE,
     "Estaca – Faixa",
     "Estaca – Trilha",
-    *SENSOR_LABELS,
+    *BACKMEDINA_SENSOR_LABELS,
 )
 
 

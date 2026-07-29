@@ -10,6 +10,8 @@ from backmedina.convert.backmedina_csv import (
     csvs_por_segmento,
     descricao_conversao_micrometro,
     exportar_csv_backmedina,
+    exportar_csv_backmedina_bytes,
+    valores_estaca_do_arquivo,
     zip_de_arquivos,
 )
 from backmedina.convert.resumo_seg import resumo_seg_xlsx_bytes
@@ -31,7 +33,17 @@ secao = st.text_input(
     "Nome da SEÇÃO (cabeçalho do CSV)", value=dados.metadados.secao()
 )
 
-csv_txt = exportar_csv_backmedina(dados, secao=secao)
+# Faixa/Trilha são definidas em "Segmentação Homogênea" e valem para todas as
+# estações. Sem passar por lá, cai no valor do arquivo de entrada (ou 0).
+_faixa_arq, _trilha_arq = valores_estaca_do_arquivo(dados)
+faixa = st.session_state.get("estaca_faixa", _faixa_arq)
+trilha = st.session_state.get("estaca_trilha", _trilha_arq)
+st.caption(
+    f"Identificação da estaca: **Faixa = {faixa}** · **Trilha = {trilha}** — "
+    "definidas em **📐 Segmentação Homogênea**."
+)
+
+csv_txt = exportar_csv_backmedina(dados, secao=secao, faixa=faixa, trilha=trilha)
 
 st.subheader("Prévia do CSV BackMeDiNa")
 st.code("\n".join(csv_txt.splitlines()[:8]), language="text")
@@ -40,7 +52,9 @@ col1, col2 = st.columns(2)
 with col1:
     st.download_button(
         "⬇️ Baixar CSV BackMeDiNa",
-        data=csv_txt.encode("utf-8"),
+        data=exportar_csv_backmedina_bytes(
+            dados, secao=secao, faixa=faixa, trilha=trilha
+        ),
         file_name=f"{secao or 'secao'}_backmedina.csv",
         mime="text/csv",
     )
@@ -53,8 +67,10 @@ with col2:
     )
 
 st.caption(
-    "O CSV inclui o cabeçalho `BACKMEDINA` / `SEÇÃO:` / `RAIO (cm): 15` e as "
-    "colunas d0…d180 **em µm**, pronto para importar no BackMeDiNa. "
+    "O CSV inclui o cabeçalho `BACKMEDINA` / `SEÇÃO:` / `RAIO (cm):` e as "
+    "colunas d0…d210 **em µm**, pronto para importar no BackMeDiNa. "
+    "Formato do arquivo: separador `;`, codificação **CP1252 (ANSI)** e fim de "
+    "linha CRLF — exigências do importador. "
     "A planilha padronizada permanece em 0,01 mm (formato SOLOCAP)."
 )
 
@@ -69,7 +85,7 @@ if df_seg is None:
         "Vá em **📐 Segmentação Homogênea** e gere os trechos."
     )
 else:
-    arquivos = csvs_por_segmento(dados, df_seg)
+    arquivos = csvs_por_segmento(dados, df_seg, faixa=faixa, trilha=trilha)
     n_csvs = len(arquivos)
     # Inclui o Resumo_Seg.xlsx (Segmento, Estacas, Comprimento, Dm, σ, Dc).
     segmentos = st.session_state.get("segmentos")

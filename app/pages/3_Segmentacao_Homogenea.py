@@ -13,6 +13,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from backmedina.convert.backmedina_csv import valores_estaca_do_arquivo
 from backmedina.convert.zi_export import zi_xlsx_bytes
 from backmedina.plots.basins import fig_para_png, plot_curva_z
 from backmedina.report.apresentacao_zi import gerar_pdf_zi
@@ -77,11 +78,33 @@ st.download_button(
 modo = st.radio(
     "Segmentação", ["Segmentação automática", "Manual"], horizontal=True,
 )
-circuito_fechado = st.checkbox(
-    "Circuito fechado",
-    help="Marque quando o início da via coincide com o fim (valida também o "
-    "trecho circular). Aplica-se ao modo manual.",
-)
+# Começam em 0. Exceção: se o arquivo de entrada já trouxer as colunas (caso do
+# CSV de bacias), esse valor vira o inicial — para não descartar dado importado.
+_faixa_arq, _trilha_arq = valores_estaca_do_arquivo(dados)
+st.session_state.setdefault("estaca_faixa", _faixa_arq)
+st.session_state.setdefault("estaca_trilha", _trilha_arq)
+
+cf1, cf2, cf3 = st.columns(3, vertical_alignment="bottom")
+with cf1:
+    circuito_fechado = st.checkbox(
+        "Circuito fechado",
+        help="Marque quando o início da via coincide com o fim (valida também o "
+        "trecho circular). Aplica-se ao modo manual.",
+    )
+# Faixa/Trilha: preenchimento opcional do usuário — se não mexer, ficam 0.
+# Vão para as colunas homônimas do CSV BackMeDiNa, iguais em todas as estações.
+with cf2:
+    st.number_input(
+        "Estaca – Faixa", min_value=0, max_value=99, step=1, key="estaca_faixa",
+        help="Opcional. Faixa de tráfego do levantamento, na coluna "
+        "`Estaca – Faixa` do CSV BackMeDiNa. Deixe 0 se não se aplicar.",
+    )
+with cf3:
+    st.number_input(
+        "Estaca – Trilha", min_value=0, max_value=99, step=1, key="estaca_trilha",
+        help="Opcional. Trilha de roda do levantamento, na coluna "
+        "`Estaca – Trilha` do CSV BackMeDiNa. Deixe 0 se não se aplicar.",
+    )
 
 
 def _tabela(segmentos) -> pd.DataFrame:

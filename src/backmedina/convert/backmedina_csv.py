@@ -1,14 +1,17 @@
 """Exportação para CSV compatível com o BackMeDiNa.
 
-Formato (Franco et al., 2018; ver Machado, 2019, Fig. 2.14):
-  linha 1: BACKMEDINA
-  linha 2: SEÇÃO: <nome>
-  linha 3: RAIO (cm): 15
+Formato (Franco et al., 2018; ver Machado, 2019, Fig. 2.14), fiel ao arquivo
+que o BackMeDiNa aceita — separador ';', CP1252, CRLF, todas as linhas
+preenchidas até o nº total de colunas:
+
+  linha 1: BACKMEDINA;;;…
+  linha 2: SEÇÃO:;<nome>;;;…      <- rótulo e valor em células separadas
+  linha 3: RAIO (cm):;15;;;…      <- idem
   linha 4: cabeçalho das colunas
   linha 5+: dados (uma linha por estação)
 
-Deflexões em 0,01 mm; carga em kgf. As colunas d0..d180 vêm de D1..D9 do
-levantamento SOLOCAP (D10 é descartado).
+Deflexões em µm; carga em kgf. As colunas d0..d180 vêm de D1..D9 do
+levantamento SOLOCAP e d210 de D10 (presente no CSV, fora dos cálculos).
 """
 
 from __future__ import annotations
@@ -20,11 +23,16 @@ import zipfile
 import pandas as pd
 
 from backmedina.model.schema import (
+    BACKMEDINA_COL_CHAINAGE,
+    BACKMEDINA_ENCODING,
+    BACKMEDINA_EOL,
     BACKMEDINA_HEADER,
     BACKMEDINA_MARCADOR,
+    BACKMEDINA_SENSOR_LABELS,
+    BACKMEDINA_SEP,
     D_TO_SENSOR,
     RAIO_PLACA_CM,
-    SENSOR_LABELS,
+    SENSOR_LABEL_EXTRA,
     DadosFWD,
 )
 
@@ -46,7 +54,9 @@ def _num(v: object) -> object:
 
 
 def _sensor_para_d(label: str) -> str:
-    """Rótulo BackMeDiNa 'd0'..'d180' -> coluna SOLOCAP 'D1'..'D9'."""
+    """Rótulo BackMeDiNa 'd0'..'d210' -> coluna SOLOCAP 'D1'..'D10'."""
+    if label == SENSOR_LABEL_EXTRA:
+        return "D10"  # geofone externo: só existe na saída CSV
     return {v: k for k, v in D_TO_SENSOR.items()}[label]
 
 
@@ -59,8 +69,44 @@ def _serie_ou_default(df: pd.DataFrame, col: str, default) -> pd.Series:
     return pd.Series([default] * n)
 
 
-def montar_dataframe_backmedina(dados: DadosFWD) -> pd.DataFrame:
-    """Constrói o DataFrame na ordem exata de BACKMEDINA_HEADER."""
+def _coluna_estaca(df: pd.DataFrame, col: str, valor: int | None) -> pd.Series:
+    """Faixa/Trilha: valor informado pelo usuário vence; senão o do arquivo; senão 0.
+
+    A planilha SOLOCAP não traz essas colunas — só o CSV de bacias traz. Quando
+    nenhuma das duas fontes existe, o BackMeDiNa aceita 0.
+    """
+    if valor is not None:
+        return pd.Series([valor] * len(df))
+    return _serie_ou_default(df, col, 0)
+
+
+def valores_estaca_do_arquivo(dados: DadosFWD) -> tuple[int, int]:
+    """(faixa, trilha) lidos do arquivo de entrada — 0 quando ausentes.
+
+    Serve de valor inicial para os campos da UI. Se a coluna existir mas variar
+    entre estações, devolve o valor da primeira (a UI aplica um valor único).
+    """
+    df = dados.tabela
+    out = []
+    for col in ("Estaca – Faixa", "Estaca – Trilha"):
+        if col in df.columns and len(df):
+            try:
+                out.append(int(float(df[col].iloc[0])))
+                continue
+            except (TypeError, ValueError):
+                pass
+        out.append(0)
+    return out[0], out[1]
+
+
+def montar_dataframe_backmedina(
+    dados: DadosFWD, faixa: int | None = None, trilha: int | None = None
+) -> pd.DataFrame:
+    """Constrói o DataFrame na ordem exata de BACKMEDINA_HEADER.
+
+    ``faixa``/``trilha``: valor único aplicado a todas as estações (vem da UI).
+    ``None`` mantém o que houver no arquivo de entrada.
+    """
     df = dados.tabela.reset_index(drop=True)
     n = len(df)
     tem = set(df.columns)
@@ -87,7 +133,7 @@ def montar_dataframe_backmedina(dados: DadosFWD) -> pd.DataFrame:
     )
     estaca_desl = (
         df["Metros"] if "Metros" in tem
-        else _serie_ou_default(df, "Estaca – Deslocamento", 0)
+        else _serie_ou_default(df, BACKMEDINA_COL_CHAINAGE, 0)
     )
 
     saida = pd.DataFrame(
@@ -97,9 +143,9 @@ def montar_dataframe_backmedina(dados: DadosFWD) -> pd.DataFrame:
             "Temp. Do Pavimento": pd.Series(temp_pav).reset_index(drop=True),
             "Carga": df.apply(_valor_carga_kgf, axis=1).reset_index(drop=True),
             "Estaca – Número": pd.Series(estaca_num).reset_index(drop=True),
-            "Estaca – Deslocamento": pd.Series(estaca_desl).reset_index(drop=True),
-            "Estaca – Faixa": _serie_ou_default(df, "Estaca – Faixa", 0),
-            "Estaca – Trilha": _serie_ou_default(df, "Estaca – Trilha", 0),
+            BACKMEDINA_COL_CHAINAGE: pd.Series(estaca_desl).reset_index(drop=True),
+            "Estaca – Faixa": _coluna_estaca(df, "Estaca – Faixa", faixa),
+            "Estaca – Trilha": _coluna_estaca(df, "Estaca – Trilha", trilha),
         }
     )
 
@@ -113,7 +159,7 @@ def montar_dataframe_backmedina(dados: DadosFWD) -> pd.DataFrame:
             return ""
         return _num(float(v) * fator)
 
-    for label in SENSOR_LABELS:
+    for label in BACKMEDINA_SENSOR_LABELS:
         dcol = _sensor_para_d(label)
         if label in tem:
             saida[label] = df[label].map(_defl)
@@ -123,30 +169,79 @@ def montar_dataframe_backmedina(dados: DadosFWD) -> pd.DataFrame:
             saida[label] = ""
 
     # Normaliza numéricos de temperatura/estaca.
-    for col in ("Temp. Do Ar", "Temp. Do Pavimento", "Estaca – Deslocamento"):
+    for col in (
+        "Temp. Do Ar",
+        "Temp. Do Pavimento",
+        BACKMEDINA_COL_CHAINAGE,
+        "Estaca – Faixa",
+        "Estaca – Trilha",
+    ):
         saida[col] = saida[col].map(_num)
 
     return saida[list(BACKMEDINA_HEADER)]
 
 
-def exportar_csv_backmedina(dados: DadosFWD, secao: str | None = None) -> str:
+def _preencher(campos: list, n: int) -> list:
+    """Completa a linha com células vazias até `n` colunas.
+
+    O importador do BackMeDiNa exige que TODAS as linhas — inclusive as três de
+    cabeçalho — tenham o mesmo número de campos.
+    """
+    return list(campos) + [""] * (n - len(campos))
+
+
+def exportar_csv_backmedina(
+    dados: DadosFWD,
+    secao: str | None = None,
+    faixa: int | None = None,
+    trilha: int | None = None,
+) -> str:
     """Gera o texto do CSV BackMeDiNa (com cabeçalho de 3 linhas)."""
-    df = montar_dataframe_backmedina(dados)
+    df = montar_dataframe_backmedina(dados, faixa=faixa, trilha=trilha)
     nome_secao = secao or dados.metadados.secao()
+    n = len(BACKMEDINA_HEADER)
 
     buf = io.StringIO()
-    writer = csv.writer(buf, delimiter=",", lineterminator="\n")
-    writer.writerow([BACKMEDINA_MARCADOR])
-    writer.writerow([f"SEÇÃO: {nome_secao}"])
-    writer.writerow([f"RAIO (cm): {RAIO_PLACA_CM}"])
+    writer = csv.writer(
+        buf, delimiter=BACKMEDINA_SEP, lineterminator=BACKMEDINA_EOL
+    )
+    writer.writerow(_preencher([BACKMEDINA_MARCADOR], n))
+    writer.writerow(_preencher(["SEÇÃO:", nome_secao], n))
+    writer.writerow(_preencher(["RAIO (cm):", RAIO_PLACA_CM], n))
     writer.writerow(list(BACKMEDINA_HEADER))
     for _, row in df.iterrows():
         writer.writerow(list(row.values))
     return buf.getvalue()
 
 
+def exportar_csv_backmedina_bytes(
+    dados: DadosFWD,
+    secao: str | None = None,
+    faixa: int | None = None,
+    trilha: int | None = None,
+) -> bytes:
+    """CSV BackMeDiNa já codificado em CP1252 — use isto para gravar/baixar.
+
+    O importador do BackMeDiNa (Windows/ANSI) não lê UTF-8: acentos de
+    "Execução"/"Número" e o travessão "–" das colunas chegam corrompidos e o
+    arquivo é rejeitado com "ERRO 1 — Problemas ao abrir o arquivo".
+    """
+    return codificar_backmedina(
+        exportar_csv_backmedina(dados, secao=secao, faixa=faixa, trilha=trilha)
+    )
+
+
+def codificar_backmedina(texto: str) -> bytes:
+    """Codifica o texto do CSV em CP1252 (ANSI Windows), como espera o app."""
+    return texto.encode(BACKMEDINA_ENCODING, errors="replace")
+
+
 def csvs_por_segmento(
-    dados: DadosFWD, df_segmentado: pd.DataFrame, coluna_segmento: str = "Segmento"
+    dados: DadosFWD,
+    df_segmentado: pd.DataFrame,
+    coluna_segmento: str = "Segmento",
+    faixa: int | None = None,
+    trilha: int | None = None,
 ) -> dict[str, str]:
     """Gera um CSV BackMeDiNa por segmento adotado.
 
@@ -172,15 +267,23 @@ def csvs_por_segmento(
             origem=dados.origem,
             unidade_deflexao=dados.unidade_deflexao,
         )
-        arquivos[f"{nome}.csv"] = exportar_csv_backmedina(sub_dados, secao=nome)
+        arquivos[f"{nome}.csv"] = exportar_csv_backmedina(
+            sub_dados, secao=nome, faixa=faixa, trilha=trilha
+        )
     return arquivos
 
 
 def zip_de_arquivos(arquivos: dict[str, str | bytes]) -> bytes:
-    """Empacota ``{nome: conteúdo}`` num ZIP (bytes). Conteúdo str ou bytes."""
+    """Empacota ``{nome: conteúdo}`` num ZIP (bytes). Conteúdo str ou bytes.
+
+    Conteúdo em ``str`` é codificado em CP1252 — ``zipfile.writestr`` usaria
+    UTF-8 por padrão, o que quebraria os CSVs no BackMeDiNa.
+    """
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for nome, conteudo in arquivos.items():
+            if isinstance(conteudo, str):
+                conteudo = codificar_backmedina(conteudo)
             zf.writestr(nome, conteudo)
     return buf.getvalue()
 

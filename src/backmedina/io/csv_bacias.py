@@ -12,6 +12,7 @@ import pandas as pd
 
 from backmedina.io.br_numbers import parse_br_series
 from backmedina.model.schema import (
+    BACKMEDINA_SENSOR_LABELS,
     CSV_BACIAS_ENCODING,
     CSV_BACIAS_SEP,
     SENSOR_LABELS,
@@ -53,8 +54,10 @@ def ler_csv_bacias(caminho: str | Path) -> DadosFWD:
     )
     df.columns = [c.strip() for c in df.columns]
 
-    # Normaliza colunas de deflexão para número.
-    for label in SENSOR_LABELS:
+    # Normaliza colunas de deflexão para número. Inclui o d210 opcional, que
+    # existe no CSV do BackMeDiNa mas não entra nos cálculos — sem isto ele
+    # voltaria como texto e quebraria o round-trip (ler CSV -> exportar CSV).
+    for label in BACKMEDINA_SENSOR_LABELS:
         if label in df.columns:
             df[label] = parse_br_series(df[label])
     for col in ("Temp. Do Ar", "Temp. Do Pavimento", "Carga"):

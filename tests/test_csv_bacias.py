@@ -33,16 +33,18 @@ def test_csv_bacias_deriva_metros():
 
 
 def test_csv_bacias_export_preserva_deslocamento():
-    # "Estaca – Deslocamento" no CSV BackMeDiNa não pode ser zerado pela
-    # diferença de grafia Descolamento (entrada) vs Deslocamento (saída).
+    # A posição métrica ("Estaca – Descolamento") não pode ser zerada no
+    # round-trip ler CSV de bacias -> exportar CSV BackMeDiNa.
     dados = ler_csv_bacias(TEMPLATE)
     linhas = exportar_csv_backmedina(dados).splitlines()
     col = {name: i for i, name in enumerate(BACKMEDINA_HEADER)}
-    assert linhas[3].split(",") == list(BACKMEDINA_HEADER)  # cabeçalho de colunas
-    est2 = linhas[5].split(",")                             # 2ª estação de dados
-    assert est2[col["Estaca – Deslocamento"]] == "20"       # antes vinha "0"
+    assert linhas[3].split(";") == list(BACKMEDINA_HEADER)  # cabeçalho de colunas
+    est2 = linhas[5].split(";")                             # 2ª estação de dados
+    assert est2[col["Estaca – Descolamento"]] == "20"       # antes vinha "0"
     # Bacias já em µm -> sem ×10 (d0 da 2ª estação permanece 712).
     assert est2[col["d0"]] == "712"
+    # O template não traz d210: a coluna existe na saída, vazia.
+    assert est2[col["d210"]] == ""
 
 
 def _escrever_csv_bacias(tmp_path, n=20):
