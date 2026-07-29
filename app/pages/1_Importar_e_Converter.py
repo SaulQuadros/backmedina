@@ -76,7 +76,7 @@ if "dados" in st.session_state:
     else:
         st.success("Validação sem avisos.")
 
-    st.dataframe(dados.tabela, width="stretch", height=360)
+    st.dataframe(dados.tabela, width="stretch", height=560)
     st.caption(
         f"{len(dados.tabela)} estações. Prossiga para **Índices de Bacia**, "
         "**Segmentação Homogênea** ou **Exportar BackMeDiNa**."

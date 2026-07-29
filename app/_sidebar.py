@@ -48,8 +48,35 @@ _PAGINAS = [
 ]
 
 
+def _injetar_css_scrollbar() -> None:
+    """Barras de rolagem sempre visíveis e mais largas (fáceis de agarrar).
+
+    O default do navegador usa scrollbars finas do tipo *overlay* (auto-ocultam),
+    difíceis de arrastar. Isto vale para a página e o sidebar; a rolagem interna
+    do grid de `st.dataframe` é desenhada pelo próprio widget e não é afetada.
+    """
+    st.markdown(
+        """
+        <style>
+          /* Chromium / Edge / WebKit */
+          ::-webkit-scrollbar { width: 14px; height: 14px; }
+          ::-webkit-scrollbar-thumb {
+              background: #9aa0a6; border-radius: 7px;
+              border: 3px solid transparent; background-clip: content-box;
+          }
+          ::-webkit-scrollbar-thumb:hover { background: #6b7075; }
+          ::-webkit-scrollbar-track { background: transparent; }
+          /* Firefox */
+          html { scrollbar-width: auto; scrollbar-color: #9aa0a6 transparent; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render() -> None:
     """Renderiza o sidebar (chamar após set_page_config em cada página)."""
+    _injetar_css_scrollbar()
     dados = st.session_state.get("dados")
     with st.sidebar:
         st.markdown("### 🛣️ Conversor FWD")

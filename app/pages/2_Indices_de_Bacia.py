@@ -42,7 +42,7 @@ st.caption(
 indices = indices_com_contexto(df, unidade=dados.unidade_deflexao)
 st.session_state["indices"] = indices
 
-st.dataframe(indices.round(3), width="stretch", height=360)
+st.dataframe(indices.round(3), width="stretch", height=520)
 
 st.download_button(
     "Baixar índices (CSV)",
@@ -123,7 +123,7 @@ _classe_cols = [c for c in tab_class.columns if c.startswith("Classe")]
 tab_show = tab_class.copy()
 for _c in _classe_cols:
     tab_show[_c] = tab_show[_c].map(lambda v: CLASSE_EMOJI.get(v, v))
-st.dataframe(tab_show, width="stretch", height=340)
+st.dataframe(tab_show, width="stretch", height=480)
 
 # Resumo por classe
 linhas_resumo = []
@@ -157,3 +157,9 @@ destino = (
 )
 fator = fator_conversao(dados.unidade_deflexao, destino)
 st.pyplot(plot_bacias(df, unidade_label=opcao, fator=fator))
+st.caption(
+    "Cada curva é a bacia de **uma estação** (9 geofones, 0–180 cm). A **cor** "
+    "indica a posição da estação na via (barra à direita); a **linha preta** é a "
+    "bacia média. Com muitas estações, mostra-se uma amostra distribuída por todo "
+    "o trecho — veja a contagem no título do gráfico."
+)
