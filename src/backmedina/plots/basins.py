@@ -113,6 +113,74 @@ def fig_para_png(fig, dpi: int = 200) -> bytes:
     return buf.getvalue()
 
 
+def _primeira_coluna(df: pd.DataFrame, candidatas: tuple[str, ...]) -> str | None:
+    """Primeira das ``candidatas`` presente em ``df`` (None se nenhuma existir)."""
+    return next((c for c in candidatas if c in df.columns), None)
+
+
+def plot_d0_por_estaca(
+    df: pd.DataFrame,
+    coluna_dist: str | None = None,
+    coluna_d0: str | None = None,
+    unidade_label: str = "0,01 mm",
+    fator: float = 1.0,
+    ddof: int = 1,
+):
+    """Plota a deflexão máxima **D0** de cada estação ao longo do trecho.
+
+    Mesmo formato da curva de diferenças acumuladas (distância no eixo x), mas
+    com o valor bruto de D0 no eixo y — dá a leitura direta de onde o pavimento
+    está mais deformável, antes de qualquer segmentação.
+
+    As linhas tracejadas marcam a média D̄ e a deflexão característica
+    ``Dc = D̄ + σ`` do trecho inteiro (mesma definição usada na segmentação).
+
+    ``coluna_dist``/``coluna_d0`` são detectadas quando omitidas ("Metros" e
+    "D1"/"d0"). ``fator``/``unidade_label`` afetam só a EXIBIÇÃO.
+    """
+    fig, ax = plt.subplots(figsize=(9, 4))
+    col_d0 = coluna_d0 or _primeira_coluna(df, ("D1", "d0"))
+    col_dist = coluna_dist or _primeira_coluna(df, ("Metros",))
+
+    if col_d0 is None or not len(df):
+        ax.set_title("Deflexão máxima D0 — sem dados")
+        ax.set_xlabel("Distância (m)")
+        ax.set_ylabel(f"D0 ({unidade_label})")
+        fig.tight_layout()
+        return fig
+
+    y = pd.to_numeric(df[col_d0], errors="coerce").to_numpy(dtype=float) * fator
+    if col_dist is not None:
+        x = pd.to_numeric(df[col_dist], errors="coerce").to_numpy(dtype=float)
+        x_label = "Distância (m)"
+    else:
+        x = np.arange(len(df), dtype=float)
+        x_label = "Estação (ordem)"
+
+    ax.plot(x, y, color="#37474F", linewidth=1.2, marker="o", markersize=3.5,
+            label="D0 por estação")
+
+    # Referências do trecho: média e característica (Dc = D̄ + σ).
+    with warnings.catch_warnings():  # "Mean of empty slice" se D0 for todo NaN
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        media = float(np.nanmean(y))
+        n_val = int(np.count_nonzero(np.isfinite(y)))
+        sigma = float(np.nanstd(y, ddof=ddof)) if n_val > ddof else 0.0
+    if np.isfinite(media):
+        ax.axhline(media, color="#1E88E5", linestyle="--", linewidth=1,
+                   label=f"D̄ = {media:.1f}")
+        ax.axhline(media + sigma, color="#E53935", linestyle="--", linewidth=1,
+                   label=f"Dc = D̄ + σ = {media + sigma:.1f}")
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(f"D0 ({unidade_label})")
+    ax.set_title("Deflexão máxima D0 ao longo do trecho")
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    return fig
+
+
 def plot_curva_z(df_seg: pd.DataFrame, coluna_dist: str = "Metros"):
     """Plota a curva Z(x) das diferenças acumuladas colorida por segmento."""
     fig, ax = plt.subplots(figsize=(9, 4))

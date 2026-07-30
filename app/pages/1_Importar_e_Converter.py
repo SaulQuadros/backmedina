@@ -11,6 +11,7 @@ import streamlit as st
 
 from backmedina.io.loader import carregar
 from backmedina.io.validacao import validar
+from backmedina.plots.basins import plot_d0_por_estaca
 
 st.set_page_config(page_title="Importar e Converter", page_icon="📥", layout="wide")
 _sidebar.render()
@@ -80,4 +81,20 @@ if "dados" in st.session_state:
     st.caption(
         f"{len(dados.tabela)} estações. Prossiga para **Índices de Bacia**, "
         "**Segmentação Homogênea** ou **Exportar BackMeDiNa**."
+    )
+
+    # Perfil de D0 ao longo do trecho — leitura rápida do levantamento recém-lido,
+    # na mesma unidade da tabela acima (nenhuma conversão).
+    st.subheader("Deflexão máxima (D0) ao longo do trecho")
+    st.pyplot(
+        plot_d0_por_estaca(
+            dados.tabela, unidade_label=dados.unidade_deflexao.rotulo
+        )
+    )
+    st.caption(
+        "D0 é a deflexão do geofone central (D1/d0), por estação, em "
+        f"**{dados.unidade_deflexao.rotulo}** — mesma unidade da tabela. As linhas "
+        "tracejadas são a média D̄ e a deflexão característica **Dc = D̄ + σ** do "
+        "trecho todo (σ amostral); a segmentação em trechos homogêneos fica em "
+        "**📐 Segmentação Homogênea**."
     )
