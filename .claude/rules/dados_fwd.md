@@ -15,7 +15,13 @@ MeDiNa/BackMeDiNa e **não** mudam sem autorização explícita.
   para 0,01 mm internamente via o parâmetro `unidade`.
 - Carga: `kN` e `kgf`; no CSV BackMeDiNa a carga vai em **kgf** (não converter).
 - Distâncias radiais dos sensores: **cm**. Estaca/posição: **m**.
-- Planilha padronizada "Tabela" (.xlsx): permanece em **0,01 mm** (fiel ao SOLOCAP).
+- Planilha padronizada "Tabela" (.xlsx): sempre em **0,01 mm**. Fonte em µm é
+  **convertida** em `convert/standardize._tabela_em_001mm` — o rótulo da linha 10
+  é fixo, então gravar valor cru sob ele produz erro de 10× a cada round-trip.
+- **Unidade não declarada ≠ unidade 0,01 mm.** `detectar_unidade_explicita`
+  devolve `None` quando o arquivo nada declara; leitores não devem preencher o
+  metadado com o padrão, e a UI (página 1) avisa que a unidade foi presumida e
+  permite corrigi-la antes de qualquer cálculo.
 
 ## Mapa de sensores (autoritativo — Rocha/BackMeDiNa)
 ```
@@ -57,4 +63,4 @@ Todo texto numérico (`4.059`, `-21,77314`, `2.080,00`) passa por
 
 ## Verificação
 Qualquer mudança em parsing/contrato/fórmula deve ser coberta por `pytest` com
-fixtures do arquivo real `z_docs/lwd/2-UFJF-VIA_LOCAL_FX1-FWD.xlsx`.
+fixtures do arquivo real `z_docs/lwd/solocap/2-UFJF-VIA_LOCAL_FX1-FWD.xlsx`.

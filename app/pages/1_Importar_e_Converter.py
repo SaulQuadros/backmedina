@@ -11,6 +11,7 @@ import streamlit as st
 
 from backmedina.io.loader import carregar
 from backmedina.io.validacao import validar
+from backmedina.model.units import UnidadeDeflexao, detectar_unidade_explicita
 from backmedina.plots.basins import plot_d0_por_estaca
 
 st.set_page_config(page_title="Importar e Converter", page_icon="📥", layout="wide")
@@ -68,6 +69,40 @@ if "dados" in st.session_state:
                 "Relatório": m.relatorio,
             }
         )
+
+    # --- Unidade da fonte ---------------------------------------------------
+    # Vinha de um texto livre no arquivo, sem exibição nem correção possível: um
+    # rótulo errado (ou ausente) contaminava índices, Rc, segmentação e o CSV
+    # BackMeDiNa por um fator 10, em silêncio. Aqui fica visível e editável.
+    _declarada = detectar_unidade_explicita(dados.metadados.unidade or "")
+    _opcoes = [u.rotulo for u in UnidadeDeflexao]
+    escolha = st.selectbox(
+        "Unidade das deflexões no arquivo de origem",
+        _opcoes,
+        index=_opcoes.index(dados.unidade_deflexao.rotulo),
+        help="Define como as deflexões serão interpretadas em TODO o fluxo. "
+        "Os cálculos usam 0,01 mm e o CSV BackMeDiNa usa µm — a conversão é "
+        "feita a partir desta escolha.",
+    )
+    # Sem `key=`: o índice vem do próprio estado, então a escolha persiste entre
+    # reruns e é reinicializada quando um novo arquivo é carregado.
+    dados.unidade_deflexao = next(
+        u for u in UnidadeDeflexao if u.rotulo == escolha
+    )
+    if _declarada is None:
+        st.warning(
+            f"⚠️ O arquivo **não declara** a unidade das leituras — assumido "
+            f"**{dados.unidade_deflexao.rotulo}**. Confirme acima antes de "
+            "prosseguir: se estiver errada, todos os índices e o CSV "
+            "BackMeDiNa saem com erro de 10×."
+        )
+    elif _declarada is not dados.unidade_deflexao:
+        st.warning(
+            f"⚠️ O arquivo declara **{_declarada.rotulo}**, mas você escolheu "
+            f"**{dados.unidade_deflexao.rotulo}**. Vale a sua escolha."
+        )
+    else:
+        st.caption(f"Unidade lida do arquivo: **{_declarada.rotulo}**.")
 
     avisos = validar(dados)
     if avisos:

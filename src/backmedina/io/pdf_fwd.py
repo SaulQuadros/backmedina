@@ -29,7 +29,7 @@ from backmedina.model.schema import (
     MetadadosLevantamento,
     DadosFWD,
 )
-from backmedina.model.units import detectar_unidade
+from backmedina.model.units import UnidadeDeflexao, detectar_unidade_explicita
 
 # Âncora: data (dd/mm/aaaa) + hora (H:MM ou HH:MM) no fim da linha de dados.
 _DATA_HORA = re.compile(r"(\d{2}/\d{2}/\d{4})\s+(\d{1,2}:\d{2})")
@@ -140,9 +140,12 @@ def ler_pdf_fwd(caminho: str | Path) -> DadosFWD:
     if df.empty:
         avisos.append("Nenhuma linha de dados reconhecida no PDF.")
 
-    unidade = detectar_unidade(texto)  # texto contém "x10⁻² mm" (SOLOCAP)
-    if not metadados.unidade:
-        metadados.unidade = unidade.rotulo
+    # Só registra a unidade no metadado quando ela foi de fato DECLARADA no PDF;
+    # preencher com o padrão faria a UI acreditar que o arquivo se identificou.
+    declarada = detectar_unidade_explicita(texto)  # SOLOCAP traz "x10⁻² mm"
+    unidade = declarada or UnidadeDeflexao.DMM_001
+    if not metadados.unidade and declarada is not None:
+        metadados.unidade = declarada.rotulo
 
     return DadosFWD(
         metadados=metadados,

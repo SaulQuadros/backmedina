@@ -6,6 +6,7 @@ from backmedina.model.schema import BACKMEDINA_HEADER, MetadadosLevantamento, Da
 from backmedina.model.units import (
     UnidadeDeflexao,
     detectar_unidade,
+    detectar_unidade_explicita,
     fator_conversao,
 )
 
@@ -16,6 +17,96 @@ def test_detectar_unidade():
     assert detectar_unidade("micrômetro") is UnidadeDeflexao.MICROMETRO
     # Sem marcador reconhecível -> default.
     assert detectar_unidade("texto qualquer") is UnidadeDeflexao.DMM_001
+
+
+def test_detectar_unidade_explicita_distingue_ausente_de_declarado():
+    """A UI precisa separar 'declarou 0,01 mm' de 'não declarou nada'."""
+    assert detectar_unidade_explicita("(x10⁻² mm)") is UnidadeDeflexao.DMM_001
+    assert detectar_unidade_explicita("µm") is UnidadeDeflexao.MICROMETRO
+    assert detectar_unidade_explicita("texto qualquer") is None
+    assert detectar_unidade_explicita("") is None
+    assert detectar_unidade_explicita(None) is None
+
+
+def test_grafia_ascii_um_do_kuab():
+    """KUAB nomeia as colunas D0_um/D1_um — sem casar dentro de outras palavras."""
+    assert detectar_unidade_explicita("D0_um D1_um D2_um") is UnidadeDeflexao.MICROMETRO
+    assert detectar_unidade_explicita("Leituras (um)") is UnidadeDeflexao.MICROMETRO
+    # Armadilhas: 'um' colado a letras não é unidade.
+    for texto in ("Estaca_Numero", "resumo do trecho", "volume", "algum ponto",
+                  "alumínio", "UNIDADE DAS LEITURAS"):
+        assert detectar_unidade_explicita(texto) is None, texto
+    # Marcador forte vence o fraco quando os dois aparecem.
+    assert detectar_unidade_explicita(
+        "um levantamento com leituras em x10⁻² mm"
+    ) is UnidadeDeflexao.DMM_001
+
+
+def test_planilha_padronizada_converte_fonte_em_micrometro(tmp_path):
+    """Round-trip que travava o erro de 10x: µm -> planilha -> releitura.
+
+    A planilha declara `x10⁻² mm` na linha 10; antes gravava os valores crus da
+    fonte, então reimportá-la multiplicava tudo por 10.
+    """
+    import openpyxl
+
+    from backmedina.convert.standardize import exportar_xlsx_bytes
+    from backmedina.io.xlsx_solocap import ler_solocap_xlsx
+
+    dados = _dados(UnidadeDeflexao.MICROMETRO)  # D1 = 44 µm
+    p = tmp_path / "Tabela_padronizada.xlsx"
+    p.write_bytes(exportar_xlsx_bytes(dados))
+
+    ws = openpyxl.load_workbook(p, data_only=True).active
+    assert "x10⁻² mm" in str(ws.cell(10, 2).value)
+    assert ws.cell(14, 4).value == 4.4  # 44 µm -> 4,4 (0,01 mm)
+
+    relido = ler_solocap_xlsx(p)
+    assert relido.unidade_deflexao is UnidadeDeflexao.DMM_001
+    assert relido.tabela["D1"].iloc[0] == 4.4  # mesma deflexão física
+    # A fonte não é alterada pela exportação.
+    assert dados.tabela["D1"].iloc[0] == 44
+
+
+def test_planilha_padronizada_preserva_fonte_em_0p01mm(tmp_path):
+    """Fonte já em 0,01 mm (SOLOCAP): nenhuma conversão, valores intactos."""
+    import openpyxl
+
+    from backmedina.convert.standardize import exportar_xlsx_bytes
+
+    p = tmp_path / "Tabela_padronizada.xlsx"
+    p.write_bytes(exportar_xlsx_bytes(_dados(UnidadeDeflexao.DMM_001)))
+    ws = openpyxl.load_workbook(p, data_only=True).active
+    assert ws.cell(14, 4).value == 44
+    assert ws.cell(14, 13).value == 2  # D10 também intacto
+
+
+def test_planilha_sem_linha_de_unidade_nao_herda_default(tmp_path):
+    """Sem 'UNIDADE DAS LEITURAS' na planilha, o metadado fica vazio.
+
+    O default do dataclass diz 'x10⁻² mm'; herdá-lo faria a UI tratar um arquivo
+    silencioso como se ele tivesse declarado a unidade.
+    """
+    from openpyxl import Workbook
+
+    from backmedina.io.xlsx_solocap import ler_solocap_xlsx
+    from backmedina.model.schema import COLUNAS_TABELA
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Tabela"
+    ws.cell(3, 1, "DATA"); ws.cell(3, 2, "10/03/2018")  # sem a linha de unidade
+    for c, nome in enumerate(COLUNAS_TABELA, start=1):
+        ws.cell(13, c, nome)
+    ws.cell(14, 1, 0); ws.cell(14, 4, 44)
+    p = tmp_path / "sem_unidade.xlsx"
+    wb.save(p)
+
+    dados = ler_solocap_xlsx(p)
+    assert dados.metadados.unidade == ""
+    assert detectar_unidade_explicita(dados.metadados.unidade) is None
+    # O fluxo segue com o padrão — mas agora a UI sabe que foi presumido.
+    assert dados.unidade_deflexao is UnidadeDeflexao.DMM_001
 
 
 def test_fatores():
@@ -73,7 +164,7 @@ def test_csvs_por_segmento_zip():
     from backmedina.segmentation.aashto_cumdiff import segmentar
     from pathlib import Path
 
-    xlsx = Path(__file__).resolve().parents[1] / "z_docs" / "lwd" / "2-UFJF-VIA_LOCAL_FX1-FWD.xlsx"
+    xlsx = Path(__file__).resolve().parents[1] / "z_docs" / "lwd" / "solocap" / "2-UFJF-VIA_LOCAL_FX1-FWD.xlsx"
     if not xlsx.exists():
         import pytest; pytest.skip("arquivo UFJF ausente")
 
@@ -115,7 +206,7 @@ def test_resumo_seg_xlsx_e_zip_com_resumo():
     from backmedina.io.xlsx_solocap import ler_solocap_xlsx
     from backmedina.segmentation.aashto_cumdiff import segmentar
 
-    xlsx = Path(__file__).resolve().parents[1] / "z_docs" / "lwd" / "2-UFJF-VIA_LOCAL_FX1-FWD.xlsx"
+    xlsx = Path(__file__).resolve().parents[1] / "z_docs" / "lwd" / "solocap" / "2-UFJF-VIA_LOCAL_FX1-FWD.xlsx"
     if not xlsx.exists():
         import pytest; pytest.skip("arquivo UFJF ausente")
 
