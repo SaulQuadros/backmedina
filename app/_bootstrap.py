@@ -14,4 +14,4 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 RAIZ_PROJETO = _RAIZ
-DIR_EXEMPLO = _RAIZ / "z_docs" / "lwd"
+DIR_EXEMPLO = _RAIZ / "z_docs" / "lwd" / "solocap"

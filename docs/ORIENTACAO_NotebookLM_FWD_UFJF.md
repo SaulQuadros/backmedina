@@ -13,9 +13,9 @@ Ambos os arquivos descrevem o **mesmo** levantamento (a planilha é a extração
 da tabela do PDF):
 
 - **PDF (relatório de campo):**
-  `…\backmedina\z_docs\lwd\2-UFJF-VIA_LOCAL_FX1-FWD.pdf`
+  `…\backmedina\z_docs\lwd\solocap\2-UFJF-VIA_LOCAL_FX1-FWD.pdf`
 - **XLSX (tabela extraída):**
-  `…\backmedina\z_docs\lwd\2-UFJF-VIA_LOCAL_FX1-FWD.xlsx` (aba `Tabela`)
+  `…\backmedina\z_docs\lwd\solocap\2-UFJF-VIA_LOCAL_FX1-FWD.xlsx` (aba `Tabela`)
 
 **Metadados do ensaio:**
 - Equipamento: **Falling Weight Deflectometer (FWD) SWECO PRIMAX 1500** — norma

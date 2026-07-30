@@ -14,7 +14,7 @@ from backmedina.convert.standardize import exportar_xlsx_bytes
 from backmedina.io.xlsx_solocap import ler_solocap_xlsx
 from backmedina.model.schema import BACKMEDINA_HEADER, SENSOR_LABELS
 
-XLSX = Path(__file__).resolve().parents[1] / "z_docs" / "lwd" / "2-UFJF-VIA_LOCAL_FX1-FWD.xlsx"
+XLSX = Path(__file__).resolve().parents[1] / "z_docs" / "lwd" / "solocap" / "2-UFJF-VIA_LOCAL_FX1-FWD.xlsx"
 
 pytestmark = pytest.mark.skipif(not XLSX.exists(), reason="arquivo UFJF ausente")
 

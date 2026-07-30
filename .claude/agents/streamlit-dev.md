@@ -21,7 +21,7 @@ export PYTHONPATH=src:app
 python3 - <<'PY'
 from streamlit.testing.v1 import AppTest
 from backmedina.io.loader import carregar
-d = carregar("z_docs/lwd/2-UFJF-VIA_LOCAL_FX1-FWD.xlsx")
+d = carregar("z_docs/lwd/solocap/2-UFJF-VIA_LOCAL_FX1-FWD.xlsx")
 for p in ["app/streamlit_app.py","app/pages/1_Importar_e_Converter.py",
           "app/pages/2_Indices_de_Bacia.py","app/pages/3_Segmentacao_Homogenea.py",
           "app/pages/4_Exportar_BackMeDiNa.py"]:

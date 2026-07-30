@@ -8,7 +8,7 @@ model: sonnet
 Você garante a qualidade do núcleo `src/backmedina/` via testes.
 
 Diretrizes:
-- Fixtures a partir de `z_docs/lwd/2-UFJF-VIA_LOCAL_FX1-FWD.xlsx` (105 estações).
+- Fixtures a partir de `z_docs/lwd/solocap/2-UFJF-VIA_LOCAL_FX1-FWD.xlsx` (105 estações).
   Marque testes que dependem do arquivo com `pytest.mark.skipif(not path.exists())`.
 - Cubra: parsing BR (`4.059`→4059, `-21,77314`→-21.77314); mapa `D1→d0…D9→d180`;
   índices PBD com valores conferidos à mão; segmentação (curva Z e nº de segmentos);

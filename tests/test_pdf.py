@@ -8,8 +8,8 @@ from backmedina.io.pdf_fwd import ler_pdf_fwd, parse_linhas_dados
 from backmedina.io.xlsx_solocap import ler_solocap_xlsx
 
 RAIZ = Path(__file__).resolve().parents[1]
-PDF = RAIZ / "z_docs" / "lwd" / "2-UFJF-VIA_LOCAL_FX1-FWD.pdf"
-XLSX = RAIZ / "z_docs" / "lwd" / "2-UFJF-VIA_LOCAL_FX1-FWD.xlsx"
+PDF = RAIZ / "z_docs" / "lwd" / "solocap" / "2-UFJF-VIA_LOCAL_FX1-FWD.pdf"
+XLSX = RAIZ / "z_docs" / "lwd" / "solocap" / "2-UFJF-VIA_LOCAL_FX1-FWD.xlsx"
 
 _sem_poppler = shutil.which("pdftotext") is None
 pytestmark = pytest.mark.skipif(
