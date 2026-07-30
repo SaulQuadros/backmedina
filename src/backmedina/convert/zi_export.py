@@ -17,8 +17,18 @@ def _cel(v):
     return v
 
 
-def zi_xlsx_bytes(tabela, totais: dict) -> bytes:
-    """Serializa a tabela de Zi + totais (A_c, L_c, tan_alpha) em XLSX (bytes)."""
+_NOTA_PADRAO = (
+    "D0 em 0,01 mm. Zi = ΣAᵢ − tanα·ΣΔlᵢ (unidade de área: 0,01 mm·m). "
+    "Vértices de Zi = fronteiras de trechos homogêneos."
+)
+
+
+def zi_xlsx_bytes(tabela, totais: dict, nota: str = _NOTA_PADRAO) -> bytes:
+    """Serializa a tabela de Zi + totais (A_c, L_c, tan_alpha) em XLSX (bytes).
+
+    ``nota`` descreve a variável usada — o padrão fala de D0; o método
+    alternativo (área da bacia) passa a sua própria nota.
+    """
     wb = Workbook()
     ws = wb.active
     ws.title = "Calculo_Zi"
@@ -32,10 +42,7 @@ def zi_xlsx_bytes(tabela, totais: dict) -> bytes:
     ws.append(["L_c (comprimento total, m)", round(totais["L_c"], 2)])
     ws.append(["tan α = A_c / L_c", round(totais["tan_alpha"], 4)])
     ws.append([])
-    ws.append([
-        "D0 em 0,01 mm. Zi = ΣAᵢ − tanα·ΣΔlᵢ (unidade de área: 0,01 mm·m). "
-        "Vértices de Zi = fronteiras de trechos homogêneos."
-    ])
+    ws.append([nota])
 
     buf = io.BytesIO()
     wb.save(buf)

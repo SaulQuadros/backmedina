@@ -35,7 +35,7 @@ def _linha_calc(row) -> str:
     return " & ".join(
         [
             _br(row["Metros"], 0),
-            _br(row["D0 (0,01 mm)"], 0),
+            _br(row.iloc[1], 0),  # 2ª coluna = variável de segmentação (ver tabela_zi)
             _br(row["D_media"], 1),
             _br(row["Delta_l (m)"], 0),
             _br(row["A_i"], 0),
@@ -46,7 +46,8 @@ def _linha_calc(row) -> str:
     ) + r" \\"
 
 
-def _tex(tab, totais, segmentos, img_nome: str) -> str:
+def _tex(tab, totais, segmentos, img_nome: str, var_tex: str = "D_0",
+         var_desc: str = "a deflexão máxima $D_0$ (0,01 mm)") -> str:
     p: list[str] = [_preambulo(), "\\begin{document}\n"]
     p.append(
         "\\begin{center}\\Large\\bfseries "
@@ -56,7 +57,7 @@ def _tex(tab, totais, segmentos, img_nome: str) -> str:
 
     p.append("\\section*{Método (AASHTO 1993)}\n")
     p.append(
-        "Sobre a deflexão máxima $D_0$ (0,01 mm), com $\\Delta l$ entre estações:\n"
+        f"Sobre {var_desc}, com $\\Delta l$ entre estações:\n"
         "\\begin{itemize}\\setlength{\\itemsep}{1pt}\n"
         "\\item $\\bar D_i = (D_{i-1}+D_i)/2$ \\quad $A_i = \\bar D_i\\,\\Delta l_i$\n"
         "\\item $A_c=\\sum A_i$;\\ $L_c=\\sum \\Delta l_i$;\\ "
@@ -146,10 +147,13 @@ def _tex(tab, totais, segmentos, img_nome: str) -> str:
     )
 
     # Tabela completa do cálculo
-    p.append("\\section*{Cálculo completo ($D_0$, $\\bar D_i$, $A_i$, $Z_i$)}\n")
+    p.append(
+        f"\\section*{{Cálculo completo (${var_tex}$, "
+        "$\\bar D_i$, $A_i$, $Z_i$)}\n"
+    )
     p.append(
         "\\scriptsize\n\\begin{longtable}{@{}r r r r r r r r@{}}\\toprule\n"
-        "Metros & $D_0$ & $\\bar D_i$ & $\\Delta l$ & $A_i$ & "
+        f"Metros & ${var_tex}$ & $\\bar D_i$ & $\\Delta l$ & $A_i$ & "
         "$\\sum A_i$ & $\\sum \\Delta l$ & $Z_i$ \\\\ \\midrule\n"
         "\\endhead\n"
     )
@@ -161,14 +165,24 @@ def _tex(tab, totais, segmentos, img_nome: str) -> str:
     return "".join(p)
 
 
-def gerar_pdf_zi(tab, totais: dict, segmentos, zi_png: bytes) -> bytes:
-    """Compila o PDF do cálculo de Zi (14×21, Pagella, sem Type 1)."""
+def gerar_pdf_zi(
+    tab, totais: dict, segmentos, zi_png: bytes,
+    var_tex: str = "D_0",
+    var_desc: str = "a deflexão máxima $D_0$ (0,01 mm)",
+) -> bytes:
+    """Compila o PDF do cálculo de Zi (14×21, Pagella, sem Type 1).
+
+    ``var_tex``/``var_desc`` identificam a variável que gerou as fronteiras —
+    D0 por padrão, ou a área da bacia no método alternativo.
+    """
     if not lualatex_disponivel():
         raise RuntimeError("lualatex não encontrado (necessário para o PDF).")
     with tempfile.TemporaryDirectory() as d:
         dp = Path(d)
         (dp / "zi.png").write_bytes(zi_png)
-        (dp / "ap.tex").write_text(_tex(tab, totais, segmentos, "zi.png"), "utf-8")
+        (dp / "ap.tex").write_text(
+            _tex(tab, totais, segmentos, "zi.png", var_tex, var_desc), "utf-8"
+        )
         for _ in range(2):
             proc = subprocess.run(
                 ["lualatex", "-interaction=nonstopmode", "-halt-on-error", "ap.tex"],

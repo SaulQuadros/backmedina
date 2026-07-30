@@ -13,6 +13,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from backmedina.analytics.area_bacia import COLUNA_AREA_BACIA, com_area_da_bacia
 from backmedina.convert.backmedina_csv import valores_estaca_do_arquivo
 from backmedina.convert.zi_export import zi_xlsx_bytes
 from backmedina.plots.basins import fig_para_png, plot_curva_z
@@ -42,6 +43,42 @@ if col_d0 is None:
     st.error("Não foi possível identificar a coluna de deflexão máxima (D0/D1).")
     st.stop()
 
+# --- Variável que gera as fronteiras ---------------------------------------
+# D0 (padrão) reproduz o ConversorDadosFWD. A área da bacia usa os 9 geofones,
+# distinguindo estações com mesmo D0 e bacias diferentes. Em qualquer caso as
+# estatísticas do trecho (Dm, σ, Dc) continuam sendo calculadas sobre D0.
+_VAR_AREA = "Área da bacia (todos os sensores)"
+variavel = st.radio(
+    "Variável de segmentação",
+    ["Deflexão máxima D0 (padrão)", _VAR_AREA],
+    horizontal=True,
+    help="Define apenas de onde saem as fronteiras. Dc = D̄₀ + σ é sempre "
+    "calculada sobre D0, qualquer que seja a escolha.",
+)
+usa_area = variavel == _VAR_AREA
+
+if usa_area:
+    df = com_area_da_bacia(df)
+    col_seg = COLUNA_AREA_BACIA
+    col_estat = col_d0
+    rotulo_var = "área da bacia"
+    _un_area = f"{dados.unidade_deflexao.rotulo}·cm"
+    st.caption(
+        f"Fronteiras pela **integral trapezoidal das deflexões** de 0 a 180 cm "
+        f"(D1…D9, em {_un_area}) — os geofones não são equiespaçados, por isso "
+        "a integral e não a média. **Dc continua em D0.** Método não normativo: "
+        "a AASHTO 1993 descreve o procedimento sobre uma variável de deflexão."
+    )
+    if df[COLUNA_AREA_BACIA].isna().all():
+        st.error(
+            "Não foi possível calcular a área da bacia (geofones D1…D9 ausentes)."
+        )
+        st.stop()
+else:
+    col_seg = col_d0
+    col_estat = None
+    rotulo_var = "D0"
+
 # --- controles comuns -------------------------------------------------------
 c1, c2, c3 = st.columns(3)
 with c1:
@@ -64,15 +101,23 @@ if comp_min > comp_max:
     st.stop()
 
 # Cálculo detalhado de Zi (independe do modo) — para rastreabilidade/estudo.
+# Acompanha a variável escolhida: seria enganoso documentar Zi sobre D0 quando
+# as fronteiras vieram da área da bacia.
+_rot_col = "Área da bacia (0,01 mm·cm)" if usa_area else "D0 (0,01 mm)"
+_nota_zi = (
+    f"{_rot_col}. Zi = ΣAᵢ − tanα·ΣΔlᵢ. "
+    "Vértices de Zi = fronteiras de trechos homogêneos."
+)
 _tab_zi, _totais_zi = tabela_zi(
-    df, coluna_dist=col_dist, coluna_d0=col_d0, unidade=dados.unidade_deflexao
+    df, coluna_dist=col_dist, coluna_d0=col_seg,
+    unidade=dados.unidade_deflexao, rotulo_var=_rot_col,
 )
 st.download_button(
     "⬇️ Baixar cálculo detalhado do Zi (xlsx)",
-    data=zi_xlsx_bytes(_tab_zi, _totais_zi),
+    data=zi_xlsx_bytes(_tab_zi, _totais_zi, nota=_nota_zi),
     file_name="calculo_zi.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    help="Passo a passo: D̄ᵢ, Δlᵢ, Aᵢ, ΣAᵢ, ΣΔlᵢ, Zi + A_c, L_c, tanα (0,01 mm).",
+    help="Passo a passo: D̄ᵢ, Δlᵢ, Aᵢ, ΣAᵢ, ΣΔlᵢ, Zi + A_c, L_c, tanα.",
 )
 
 modo = st.radio(
@@ -130,7 +175,9 @@ def _mostrar_resultado(df_seg, segmentos):
     st.session_state["df_segmentado"] = df_seg  # base p/ exportar por segmento
     st.session_state["desvio_label"] = desvio_opt  # p/ o Resumo_Seg.xlsx
     st.caption(
-        "Dc (deflexão característica) em **0,01 mm** (unidade do MeDiNa). "
+        "Dc (deflexão característica) em **0,01 mm** (unidade do MeDiNa), "
+        "sempre sobre **D0**. "
+        f"Fronteiras obtidas de **{rotulo_var}**. "
         f"Trechos entre **{comp_min:g} m** e **{comp_max:g} m** — "
         f"σ {desvio_opt.lower()}."
     )
@@ -143,7 +190,7 @@ def _mostrar_resultado(df_seg, segmentos):
         file_name="segmentos_homogeneos.csv",
         mime="text/csv",
     )
-    fig = plot_curva_z(df_seg, coluna_dist=col_dist)
+    fig = plot_curva_z(df_seg, coluna_dist=col_dist, rotulo_var=rotulo_var)
     st.pyplot(fig)
 
     # PDF autocontido do cálculo de Zi (método + gráfico + tabela + trechos).
@@ -151,12 +198,20 @@ def _mostrar_resultado(df_seg, segmentos):
         if st.button("Gerar PDF do cálculo de Zi", key="btn_pdf_zi"):
             with st.spinner("Compilando PDF (Pagella, sem Type 1)…"):
                 tab_zi, tot_zi = tabela_zi(
-                    df, coluna_dist=col_dist, coluna_d0=col_d0,
-                    unidade=dados.unidade_deflexao,
+                    df, coluna_dist=col_dist, coluna_d0=col_seg,
+                    unidade=dados.unidade_deflexao, rotulo_var=_rot_col,
+                )
+                _var_tex = "A_{bacia}" if usa_area else "D_0"
+                _var_desc = (
+                    "a área da bacia (0,01 mm$\\cdot$cm), integral trapezoidal "
+                    "das deflexões de 0 a 180 cm"
+                    if usa_area
+                    else "a deflexão máxima $D_0$ (0,01 mm)"
                 )
                 try:
                     st.session_state["_pdf_zi"] = gerar_pdf_zi(
-                        tab_zi, tot_zi, segmentos, fig_para_png(fig)
+                        tab_zi, tot_zi, segmentos, fig_para_png(fig),
+                        var_tex=_var_tex, var_desc=_var_desc,
                     )
                 except Exception as exc:  # noqa: BLE001
                     st.error(f"Falha ao gerar PDF: {exc}")
@@ -174,16 +229,16 @@ def _mostrar_resultado(df_seg, segmentos):
 # ===========================================================================
 if modo == "Segmentação automática":
     df_seg, segmentos = segmentar(
-        df, coluna_dist=col_dist, coluna_d0=col_d0,
+        df, coluna_dist=col_dist, coluna_d0=col_seg,
         comprimento_min_m=comp_min, comprimento_max_m=comp_max,
-        unidade=dados.unidade_deflexao, ddof=ddof,
+        unidade=dados.unidade_deflexao, ddof=ddof, coluna_estat=col_estat,
     )
     _mostrar_resultado(df_seg, segmentos)
 
 else:  # ---------------------------- Manual --------------------------------
     # A marcação manual ocorre sobre a MESMA curva da automática: Zi × distância.
     dist_v, z = curva_zi_do_df(
-        df, coluna_dist=col_dist, coluna_d0=col_d0, unidade=dados.unidade_deflexao
+        df, coluna_dist=col_dist, coluna_d0=col_seg, unidade=dados.unidade_deflexao
     )
     metros = list(map(float, dist_v))
 
@@ -207,7 +262,7 @@ else:  # ---------------------------- Manual --------------------------------
         fig.add_vline(x=b, line_dash="dash", line_color="red")
     fig.update_layout(
         xaxis_title="Distância (m)",
-        yaxis_title="Zi (diferenças acumuladas)",
+        yaxis_title=f"Zi (diferenças acumuladas — {rotulo_var})",
         height=400, margin=dict(l=10, r=10, t=30, b=10),
     )
     evento = st.plotly_chart(
@@ -240,9 +295,9 @@ else:  # ---------------------------- Manual --------------------------------
 
     if st.button("Partir das fronteiras da automática"):
         _, segs_auto = segmentar(
-            df, coluna_dist=col_dist, coluna_d0=col_d0,
+            df, coluna_dist=col_dist, coluna_d0=col_seg,
             comprimento_min_m=comp_min, comprimento_max_m=comp_max,
-            unidade=dados.unidade_deflexao, ddof=ddof,
+            unidade=dados.unidade_deflexao, ddof=ddof, coluna_estat=col_estat,
         )
         seed = sorted(float(s.ini_m) for s in segs_auto if s.ini_m > metros[0])
         st.session_state[CHAVE] = seed
@@ -266,10 +321,10 @@ else:  # ---------------------------- Manual --------------------------------
     if segmentar_agora:
         df_seg, segmentos, violacoes = segmentar_manual(
             df, st.session_state[CHAVE],
-            coluna_dist=col_dist, coluna_d0=col_d0,
+            coluna_dist=col_dist, coluna_d0=col_seg,
             comprimento_min_m=comp_min, comprimento_max_m=comp_max,
             unidade=dados.unidade_deflexao, ddof=ddof,
-            circuito_fechado=circuito_fechado,
+            circuito_fechado=circuito_fechado, coluna_estat=col_estat,
         )
         if violacoes:
             st.error(

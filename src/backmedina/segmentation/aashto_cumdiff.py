@@ -173,6 +173,7 @@ def segmentar(
     tol: float | None = None,
     unidade: UnidadeDeflexao = UnidadeDeflexao.DMM_001,
     ddof: int = 1,
+    coluna_estat: str | None = None,
 ) -> tuple[pd.DataFrame, list[Segmento]]:
     """Segmenta a via em trechos homogêneos por diferenças acumuladas.
 
@@ -185,9 +186,16 @@ def segmentar(
     MeDiNa). Se ``coluna_d0`` estiver em outra unidade, informe ``unidade`` para
     a normalização interna. As fronteiras dos segmentos são invariantes à escala.
 
+    ``coluna_d0`` é a variável que **gera as fronteiras** — D0 (padrão) ou outra,
+    p.ex. a área da bacia. ``coluna_estat`` é a variável das **estatísticas** do
+    trecho (Dm, σ, Dc); quando ``None``, usa a própria variável de segmentação,
+    preservando o comportamento clássico.
+
     Retorna (df_com_colunas_Z_e_segmento, lista_de_Segmento).
     """
     mask, dist_v, d0_v, z = _prep_segmentacao(df, coluna_dist, coluna_d0, unidade)
+    if coluna_estat is not None:
+        d0_v = _serie_estatistica(df, mask, coluna_estat, unidade)
     if tol is None:
         # Tolerância proporcional à amplitude de Z (robusto a ruído).
         amp = (z.max() - z.min()) if z.size else 0.0
@@ -288,6 +296,22 @@ def _montar_saida(
     return out, segmentos
 
 
+def _serie_estatistica(
+    df: pd.DataFrame,
+    mask: np.ndarray,
+    coluna: str,
+    unidade: UnidadeDeflexao,
+) -> np.ndarray:
+    """Série usada nas ESTATÍSTICAS do trecho (Dm, σ, Dc), em 0,01 mm.
+
+    Separada da variável de segmentação: as fronteiras podem vir da área da
+    bacia, mas `Dc = D̄₀ + σ` é uma grandeza definida sobre D0 e não muda de
+    significado conforme o método usado para achar os cortes.
+    """
+    k = fator_conversao(unidade, UnidadeDeflexao.DMM_001)
+    return pd.to_numeric(df[coluna], errors="coerce").to_numpy(dtype=float)[mask] * k
+
+
 def _prep_segmentacao(
     df: pd.DataFrame, coluna_dist: str, coluna_d0: str, unidade: UnidadeDeflexao
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -321,12 +345,16 @@ def tabela_zi(
     coluna_dist: str = "Metros",
     coluna_d0: str = "D1",
     unidade: UnidadeDeflexao = UnidadeDeflexao.DMM_001,
+    rotulo_var: str = "D0 (0,01 mm)",
 ) -> tuple[pd.DataFrame, dict]:
     """Tabela detalhada do cálculo de Zi (diferenças acumuladas), em 0,01 mm.
 
-    Colunas: Metros, D0, D_media (D̄ᵢ), Delta_l (Δlᵢ), A_i, Soma_A (ΣAᵢ),
-    Soma_L (ΣΔlᵢ), Zi. Retorna (DataFrame, totais) com A_c, L_c e tan_alpha.
-    D0 é normalizado para 0,01 mm conforme ``unidade``.
+    Colunas: Metros, <rotulo_var>, D_media (D̄ᵢ), Delta_l (Δlᵢ), A_i, Soma_A
+    (ΣAᵢ), Soma_L (ΣΔlᵢ), Zi. Retorna (DataFrame, totais) com A_c, L_c e
+    tan_alpha. A variável é normalizada para 0,01 mm conforme ``unidade``.
+
+    ``rotulo_var`` nomeia a 2ª coluna — os consumidores (xlsx/PDF) a leem pela
+    posição, então a tabela acompanha a variável usada na segmentação.
     """
     _, dist_v, d0_v, z = _prep_segmentacao(df, coluna_dist, coluna_d0, unidade)
     n = len(dist_v)
@@ -350,7 +378,7 @@ def tabela_zi(
     tab = pd.DataFrame(
         {
             "Metros": dist_v,
-            "D0 (0,01 mm)": d0_v,
+            rotulo_var: d0_v,
             "D_media": dbar_out,
             "Delta_l (m)": dl_out,
             "A_i": a_out,
@@ -456,13 +484,18 @@ def segmentar_manual(
     unidade: UnidadeDeflexao = UnidadeDeflexao.DMM_001,
     ddof: int = 1,
     circuito_fechado: bool = False,
+    coluna_estat: str | None = None,
 ) -> tuple[pd.DataFrame | None, list[Segmento], list[str]]:
     """Segmentação MANUAL a partir de fronteiras (m) marcadas pelo usuário.
 
     Valida as regras (mesmas da automática). Se houver violações, **não segmenta**
     e retorna ``(None, [], violacoes)``. Se válido, retorna ``(df_seg, segmentos, [])``.
+
+    ``coluna_estat``: variável das estatísticas do trecho — ver :func:`segmentar`.
     """
     mask, dist_v, d0_v, z = _prep_segmentacao(df, coluna_dist, coluna_d0, unidade)
+    if coluna_estat is not None:
+        d0_v = _serie_estatistica(df, mask, coluna_estat, unidade)
     cortes, violacoes = validar_fronteiras_manuais(
         dist_v, fronteiras_m,
         comprimento_min_m=comprimento_min_m,

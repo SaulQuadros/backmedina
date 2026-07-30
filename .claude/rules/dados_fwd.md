@@ -58,7 +58,13 @@ Todo texto numérico (`4.059`, `-21,77314`, `2.080,00`) passa por
 - `AREA = 15·[1 + 2·(D30/D0) + 2·(D60/D0) + (D90/D0)]` (cm).
 - `SCI=D0−D30`, `BDI=D30−D60`, `BCI=D60−D90`, `CF=D0−D20`.
 - `S(%) = (D0+D30+D60+D90+D120)/(5·D0)·100`.
-- Segmentação: diferenças acumuladas `Zᵢ = ΣAᵢ − (A_c/L_c)·ΣΔlᵢ` sobre D0.
+- Segmentação: diferenças acumuladas `Zᵢ = ΣAᵢ − (A_c/L_c)·ΣΔlᵢ` sobre D0 (padrão).
+  Variável alternativa (opcional na UI): **área da bacia** — integral trapezoidal
+  das deflexões de 0 a 180 cm (`analytics/area_bacia`), que usa os 9 geofones.
+  Os geofones não são equiespaçados: usar a integral, nunca a média. Não é
+  normativa (a AASHTO 1993 descreve o método sobre deflexão) — registrar no
+  relatório qual variável gerou os cortes. **Dc é sempre calculada sobre D0**,
+  via `coluna_estat` de `segmentar`/`segmentar_manual`.
 - Deflexão característica do trecho: `D_c = média(D0) + σ` (σ amostral, ddof=1).
 
 ## Verificação

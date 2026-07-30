@@ -181,8 +181,16 @@ def plot_d0_por_estaca(
     return fig
 
 
-def plot_curva_z(df_seg: pd.DataFrame, coluna_dist: str = "Metros"):
-    """Plota a curva Z(x) das diferenças acumuladas colorida por segmento."""
+def plot_curva_z(
+    df_seg: pd.DataFrame,
+    coluna_dist: str = "Metros",
+    rotulo_var: str = "D0",
+):
+    """Plota a curva Z(x) das diferenças acumuladas colorida por segmento.
+
+    ``rotulo_var`` nomeia a variável que gerou a curva (D0 por padrão, ou a
+    área da bacia no método alternativo) — vai para o eixo y e o título.
+    """
     fig, ax = plt.subplots(figsize=(9, 4))
     x = pd.to_numeric(df_seg[coluna_dist], errors="coerce")
     ax.plot(x, df_seg["Z"], color="#37474F", linewidth=1.2)
@@ -192,8 +200,10 @@ def plot_curva_z(df_seg: pd.DataFrame, coluna_dist: str = "Metros"):
             ax.scatter(gx, grupo["Z"], s=14, label=f"Seg {seg}")
         ax.legend(fontsize=8, ncol=4)
     ax.set_xlabel("Distância (m)")
-    ax.set_ylabel("Diferença acumulada Z")
-    ax.set_title("Segmentação homogênea — diferenças acumuladas (AASHTO)")
+    ax.set_ylabel(f"Diferença acumulada Z ({rotulo_var})")
+    ax.set_title(
+        f"Segmentação homogênea — diferenças acumuladas (AASHTO) sobre {rotulo_var}"
+    )
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     return fig
