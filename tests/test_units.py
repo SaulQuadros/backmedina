@@ -81,6 +81,16 @@ def test_planilha_padronizada_preserva_fonte_em_0p01mm(tmp_path):
     assert ws.cell(14, 13).value == 2  # D10 também intacto
 
 
+def test_metadados_nascem_sem_unidade_declarada():
+    """Default vazio = 'o arquivo não declarou'.
+
+    Com um default de 0,01 mm, todo arquivo parecia ter se identificado e uma
+    fonte em µm passava valendo 10x sem que a UI pudesse alertar.
+    """
+    assert MetadadosLevantamento().unidade == ""
+    assert detectar_unidade_explicita(MetadadosLevantamento().unidade) is None
+
+
 def test_planilha_sem_linha_de_unidade_nao_herda_default(tmp_path):
     """Sem 'UNIDADE DAS LEITURAS' na planilha, o metadado fica vazio.
 

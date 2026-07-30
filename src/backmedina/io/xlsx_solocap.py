@@ -39,8 +39,9 @@ _META_MAP = {
 
 
 def _ler_metadados(ws) -> MetadadosLevantamento:
+    # Campos ausentes na planilha ficam no default do dataclass — `unidade`
+    # nasce vazia, ou seja, "o arquivo não declarou" (ver MetadadosLevantamento).
     meta = MetadadosLevantamento()
-    vistos: set[str] = set()
     for r in range(1, LINHA_HEADER_COLUNAS):
         chave = ws.cell(r, 1).value
         valor = ws.cell(r, 2).value
@@ -49,12 +50,6 @@ def _ler_metadados(ws) -> MetadadosLevantamento:
         attr = _META_MAP.get(str(chave).strip())
         if attr and valor is not None:
             setattr(meta, attr, str(valor).strip())
-            vistos.add(attr)
-    if "unidade" not in vistos:
-        # A planilha não traz "UNIDADE DAS LEITURAS". Sem isto, herdaria o
-        # default do dataclass e "não declarou" viraria "declarou 0,01 mm" —
-        # exatamente a confusão que produz o erro de 10x.
-        meta.unidade = ""
     return meta
 
 

@@ -138,7 +138,11 @@ class MetadadosLevantamento:
     obra_trecho: str = ""
     pista: str = ""
     sentido: str = ""
-    unidade: str = f"UNIDADE DAS LEITURAS ({UNIDADE_DEFLEXAO})"
+    # Vazio por padrão: significa "o arquivo NÃO declarou a unidade". Um default
+    # com 0,01 mm tornaria "não declarou" indistinguível de "declarou 0,01 mm",
+    # e uma fonte em µm passaria a valer 10x. Quem decide o fallback é
+    # `units.detectar_unidade`; a UI avisa quando a unidade foi presumida.
+    unidade: str = ""
 
     def secao(self) -> str:
         """Nome da seção para o cabeçalho `SEÇÃO:` do CSV BackMeDiNa."""
