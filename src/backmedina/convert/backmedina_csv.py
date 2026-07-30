@@ -162,16 +162,25 @@ def montar_dataframe_backmedina(
     for label in BACKMEDINA_SENSOR_LABELS:
         dcol = _sensor_para_d(label)
         if label in tem:
-            saida[label] = df[label].map(_defl)
+            serie = df[label].map(_defl)
         elif dcol in tem:
-            saida[label] = df[dcol].map(_defl)
+            serie = df[dcol].map(_defl)
         else:
-            saida[label] = ""
+            serie = pd.Series([""] * n)
+        if label == SENSOR_LABEL_EXTRA:
+            # Equipamentos sem o 10º geofone (KUAB) deixariam d210 vazio. No
+            # arquivo de referência nenhuma célula numérica vem vazia, e d210
+            # não entra em cálculo algum — 0 é inerte e não arrisca o "ERRO 1".
+            serie = serie.replace("", "0")
+        saida[label] = serie
 
-    # Normaliza numéricos de temperatura/estaca.
+    # Normaliza numéricos de temperatura/estaca. "Estaca – Número" entra aqui
+    # porque fontes que a trazem (KUAB, CSV de bacias) a entregam como float, e
+    # sairia "0.0" onde o importador espera "0".
     for col in (
         "Temp. Do Ar",
         "Temp. Do Pavimento",
+        "Estaca – Número",
         BACKMEDINA_COL_CHAINAGE,
         "Estaca – Faixa",
         "Estaca – Trilha",

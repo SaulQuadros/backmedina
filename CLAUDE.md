@@ -27,7 +27,8 @@ compatibilidade com MeDiNa/BackMeDiNa. Não faz retroanálise (fica no BackMeDiN
 ```
 app/                     UI Streamlit (Home + pages/1..4). Só orquestra.
 src/backmedina/          Núcleo puro (sem Streamlit), testável por pytest:
-  io/        br_numbers, xlsx_solocap, csv_bacias, pdf_fwd, validacao, loader
+  io/        br_numbers, xlsx_solocap, xlsx_kuab, csv_bacias, pdf_fwd,
+             validacao, loader (despacho .xlsx SOLOCAP/KUAB por conteúdo)
   model/     schema.py   -> CONTRATOS FIXOS (sensores, unidades, layouts)
   convert/   standardize (-> Modelo.xlsx), backmedina_csv (-> CSV BackMeDiNa)
   analytics/ pbd_indices (Rocha), deflexao_caracteristica

@@ -43,8 +43,10 @@ def test_csv_bacias_export_preserva_deslocamento():
     assert est2[col["Estaca – Descolamento"]] == "20"       # antes vinha "0"
     # Bacias já em µm -> sem ×10 (d0 da 2ª estação permanece 712).
     assert est2[col["d0"]] == "712"
-    # O template não traz d210: a coluna existe na saída, vazia.
-    assert est2[col["d210"]] == ""
+    # O template não traz d210 (nem o KUAB tem o 10º geofone): a coluna existe
+    # na saída preenchida com 0. Nenhuma célula numérica do arquivo de
+    # referência vem vazia, e d210 não entra em cálculo algum.
+    assert est2[col["d210"]] == "0"
 
 
 def _escrever_csv_bacias(tmp_path, n=20):

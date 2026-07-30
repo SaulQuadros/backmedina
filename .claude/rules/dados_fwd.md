@@ -38,6 +38,14 @@ Todo texto numérico (`4.059`, `-21,77314`, `2.080,00`) passa por
 ## Layouts de I/O (não alterar sem autorização)
 - **SOLOCAP .xlsx** (aba "Tabela"): metadados linhas 1-10, cabeçalho linha 13,
   dados linha 14+; colunas `COLUNAS_TABELA`.
+- **KUAB .xlsx** (`io/xlsx_kuab`): metadados com chave na col A e valor na 1ª
+  célula à direita; cabeçalho localizado pela coluna `D0_um`; dados abaixo.
+  Nomenclatura dos geofones **desloca em 1**: `D0_um→D1 … D8_um→D9`, sem 10º
+  geofone (`D10` vazio, `d210` sai 0 no CSV). Unidade **µm**, declarada nos
+  nomes das colunas. Data só no cabeçalho + `Time` por linha. `Raio (cm) 150`
+  do cabeçalho é o raio da **placa em mm**, não o raio de curvatura. As
+  distâncias radiais declaradas são conferidas contra `SENSOR_OFFSETS_CM`.
+  O despacho entre SOLOCAP e KUAB em `io/loader` é **por conteúdo**.
 - **CSV bacias**: `;`-sep, CP1252, 1ª linha em branco, header com `d0..d180`.
 - **CSV BackMeDiNa** (saída): `;`-sep, **CP1252**, **CRLF**. Cabeçalho de 3 linhas
   com rótulo e valor em **células separadas** — `BACKMEDINA` / `SEÇÃO:;<nome>` /
