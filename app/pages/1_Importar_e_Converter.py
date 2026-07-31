@@ -9,7 +9,9 @@ import _bootstrap  # noqa: F401
 import _sidebar
 import streamlit as st
 
+from backmedina.convert.rascunho_pdf import rascunho_xlsx_bytes
 from backmedina.io.loader import carregar
+from backmedina.io.pdf_fwd import diagnosticar, extrair_texto_layout
 from backmedina.io.validacao import validar
 from backmedina.model.units import UnidadeDeflexao, detectar_unidade_explicita
 from backmedina.plots.basins import plot_d0_por_estaca
@@ -49,11 +51,58 @@ elif usar_exemplo:
 if caminho is not None:
     try:
         dados = carregar(caminho)
-        dados.origem = nome_origem
-        st.session_state["dados"] = dados
     except Exception as exc:  # noqa: BLE001
         st.error(f"Falha ao ler o arquivo: {exc}")
         st.stop()
+
+    if len(dados.tabela) == 0:
+        # Import vazio NÃO entra no estado: antes, o arquivo era aceito com 0
+        # estações e as páginas seguintes ficavam acessíveis com tabela vazia.
+        st.error(
+            f"**Nenhuma estação reconhecida em `{nome_origem}`** — o arquivo não "
+            "foi carregado. O layout não corresponde a nenhum leitor conhecido "
+            "(SOLOCAP, KUAB ou CSV de bacias)."
+        )
+        _pistas = list(dados.avisos)
+        if caminho.suffix.lower() == ".pdf":
+            try:
+                _texto = extrair_texto_layout(caminho)
+                _pistas = diagnosticar(_texto) or _pistas
+            except Exception as exc:  # noqa: BLE001
+                _texto = ""
+                _pistas = [f"Não foi possível extrair o texto do PDF: {exc}"]
+        else:
+            _texto = ""
+        for p in _pistas:
+            st.write("• " + p)
+
+        if _texto:
+            st.markdown(
+                "Você pode montar a planilha à mão a partir do rascunho abaixo e "
+                "reimportar. **A linha `UNIDADE DAS LEITURAS` vem em branco de "
+                "propósito** — preencha com `µm` ou `x10⁻² mm` conforme o "
+                "relatório, senão os cálculos saem com erro de 10×."
+            )
+            st.download_button(
+                "⬇️ Baixar rascunho para ajuste manual (.xlsx)",
+                data=rascunho_xlsx_bytes(_texto, origem=nome_origem),
+                file_name=f"{Path(nome_origem).stem}_rascunho.xlsx",
+                mime="application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet",
+            )
+            with st.expander("Ver o texto extraído do PDF (primeiras linhas)"):
+                st.code("\n".join(_texto.splitlines()[:25]), language="text")
+
+        if "dados" in st.session_state:
+            st.info(
+                "O levantamento carregado antes continua ativo — veja o nome "
+                "logo abaixo."
+            )
+        else:
+            st.stop()
+    else:
+        dados.origem = nome_origem
+        st.session_state["dados"] = dados
 
 if "dados" in st.session_state:
     dados = st.session_state["dados"]

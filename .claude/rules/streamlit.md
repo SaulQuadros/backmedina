@@ -7,6 +7,10 @@ Aplica-se a `app/**`.
 - Toda página começa com `import _bootstrap` (garante `src/` no `sys.path`).
 - Estado compartilhado entre páginas via `st.session_state` (chaves: `dados`,
   `indices`, `segmentos`). Não recomputar o que já está no estado sem motivo.
+- **Import vazio não entra no estado.** Arquivo com 0 estações não vira `dados`
+  (senão as páginas 2-4 ficam acessíveis com tabela vazia): mostrar o motivo
+  concreto (`io/pdf_fwd.diagnosticar`) e, para PDF, oferecer o rascunho de
+  `convert/rascunho_pdf` — que **nunca** declara a unidade das leituras.
 - Preservar a estrutura de páginas (Home + `pages/1..4`) e a numeração dos arquivos
   (define a ordem no menu). Não alterar abas/textos não relacionados ao pedido.
 - **Nunca** expor segredos, tokens ou caminhos absolutos sensíveis na interface.

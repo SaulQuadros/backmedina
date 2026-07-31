@@ -125,6 +125,51 @@ def parse_linhas_dados(texto: str) -> tuple[list[dict], list[str]]:
     return registros, avisos
 
 
+def diagnosticar(texto: str) -> list[str]:
+    """Explica por que nenhuma linha de dados foi reconhecida.
+
+    Devolve pistas concretas em vez de um "não reconhecido" genérico: é o que
+    permite ao usuário decidir entre corrigir o arquivo e montar a planilha à
+    mão a partir do rascunho.
+    """
+    linhas = [l for l in texto.splitlines() if l.strip()]
+    if not linhas:
+        return ["O PDF não tem texto extraível (possivelmente digitalizado/imagem)."]
+
+    com_ancora = [l for l in linhas if _DATA_HORA.search(l)]
+    pistas: list[str] = []
+
+    if not com_ancora:
+        pistas.append(
+            "Nenhuma linha termina em data (dd/mm/aaaa) + hora — a âncora que o "
+            "leitor SOLOCAP usa para delimitar os campos. Em relatórios KUAB, por "
+            "exemplo, a data fica só no cabeçalho e a linha traz apenas a hora."
+        )
+
+    # Distribuição de campos nas linhas que "parecem" dados (começam com número).
+    contagens: dict[int, int] = {}
+    for l in linhas:
+        campos = l.split()
+        if not campos:
+            continue
+        primeiro = parse_br_number(campos[0])
+        if primeiro != primeiro:  # NaN -> não começa com número
+            continue
+        contagens[len(campos)] = contagens.get(len(campos), 0) + 1
+
+    if contagens:
+        moda, freq = max(contagens.items(), key=lambda kv: kv[1])
+        pistas.append(
+            f"{sum(contagens.values())} linha(s) parecem dados; a mais comum tem "
+            f"**{moda} campos** ({freq} linhas), e o layout SOLOCAP espera "
+            f"**{_N_CAMPOS} campos numéricos** + data/hora."
+        )
+    else:
+        pistas.append("Nenhuma linha começa com um número (posição/estaca).")
+
+    return pistas
+
+
 def ler_pdf_fwd(caminho: str | Path) -> DadosFWD:
     """Lê um relatório FWD em PDF e devolve :class:`DadosFWD`."""
     caminho = Path(caminho)
